@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
-  StatusBar,
   StyleSheet,
   View,
 } from 'react-native';
 import { SignalingChannel } from './SignalingChannel';
 
 import { mediaDevices, MediaStream, RTCPeerConnection, RTCView } from "react-native-webrtc";
+import { config } from './config';
 
 const STREAM_ID = "stream-12345";
 
@@ -49,7 +49,7 @@ const App = () => {
       console.log("local description is set");
 
       if (!signalingChannel.current) {
-        signalingChannel.current = new SignalingChannel("ws://paryal.dev:5080/WebRTCAppEE/websocket", {
+        signalingChannel.current = new SignalingChannel(config.SIGNALING_URL, {
           onOpen: () => {
             console.log("open called");
             signalingChannel.current?.sendJSON({
