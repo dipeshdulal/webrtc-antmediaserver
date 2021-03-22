@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Button,
   Dimensions,
   StyleSheet,
   View,
@@ -9,90 +10,91 @@ import { SignalingChannel } from './SignalingChannel';
 import { mediaDevices, MediaStream, RTCPeerConnection, RTCView } from "react-native-webrtc";
 import { config } from './config';
 
-const STREAM_ID = "stream-12345";
+const STREAM_ID = "170714163152216487974907";
 
-const isFrontCamera = false;
 
 const App = () => {
 
+  const [started, setStarted] = useState(false);
+  const [isFrontCamera, setIsFrontCamera] = useState(true);
+  const [audiMuted, setAudioMuted] = useState(false)
+  const [videoMuted, setVideoMuted] = useState(false)
+
   const [localStream, setLocalStream] = useState<MediaStream>();
 
-  const peerConnection = useRef<RTCPeerConnection>(new RTCPeerConnection({
-    iceServers: []
-  }))
+  const localStreamRef = useRef<MediaStream>();
 
-  const signalingChannel = useRef<SignalingChannel>();
+  const peerConnection = useRef<RTCPeerConnection>()
 
-  useEffect(() => {
-    if (!localStream) { return; }
-    const initConnection = async () => {
-      peerConnection.current.onsignalingstatechange = () => console.log(peerConnection.current.signalingState)
-      peerConnection.current?.addStream(localStream);
+  const startStreaming = async () => {
 
-      peerConnection.current.onicecandidateerror = console.log
-      peerConnection.current.onicecandidate = (event) => {
-        console.log("onIceCandidate local: ", event.candidate);
-        const candidate = event.candidate;
-        if (candidate && signalingChannel.current?.isChannelOpen()) {
-          signalingChannel.current?.sendJSON({
-            command: "takeCandidate",
-            streamId: STREAM_ID,
-            label: candidate.sdpMLineIndex.toString(),
-            id: candidate.sdpMid,
-            candidate: candidate.candidate,
-          })
-        }
-      }
-
-      const offer = await peerConnection.current.createOffer();
-      await peerConnection.current.setLocalDescription(offer);
-      console.log("local description is set");
-
-      if (!signalingChannel.current) {
-        signalingChannel.current = new SignalingChannel(config.SIGNALING_URL, {
-          onOpen: () => {
-            console.log("open called");
-            signalingChannel.current?.sendJSON({
-              command: "publish",
-              streamId: STREAM_ID,
-            })
-          },
-          start: () => {
-            console.log("start called")
-            signalingChannel.current?.sendJSON({
-              command: "takeConfiguration",
-              streamId: STREAM_ID,
-              type: "offer",
-              sdp: offer.sdp,
-            })
-          },
-          stop: () => {
-            console.log("stop called")
-          },
-          takeCandidate: (data) => {
-            console.log("onIceCandidate remote: ", data);
-            peerConnection.current?.addIceCandidate({
-              candidate: data?.candidate || "",
-              sdpMLineIndex: Number(data?.label) || 0,
-              sdpMid: data?.id || "",
-            })
-          },
-          takeConfiguration: (data) => {
-            console.log("got answer")
-            const answer = data?.sdp || "";
-            peerConnection.current?.setRemoteDescription({
-              sdp: answer,
-              type: "answer"
-            })
-          }
-        })
-      }
-
+    if (!localStreamRef?.current) {
+      return;
     }
 
-    initConnection();
+    peerConnection.current = new RTCPeerConnection({
+      iceServers: []
+    })
 
-  }, [localStream])
+    peerConnection.current?.addStream(localStreamRef.current);
+
+    peerConnection.current.onsignalingstatechange = () => console.log(peerConnection.current?.signalingState)
+
+    peerConnection.current.onicecandidateerror = console.log
+    peerConnection.current.onicecandidate = (event) => {
+      const candidate = event.candidate;
+      if (candidate && signalingChannel.current?.isChannelOpen()) {
+        signalingChannel.current?.sendJSON({
+          command: "takeCandidate",
+          streamId: STREAM_ID,
+          label: candidate.sdpMLineIndex.toString(),
+          id: candidate.sdpMid,
+          candidate: candidate.candidate,
+        })
+      }
+    }
+
+    const offer = await peerConnection.current.createOffer();
+    await peerConnection.current.setLocalDescription(offer);
+
+  }
+
+  const signalingChannel = useRef<SignalingChannel>(new SignalingChannel(config.SIGNALING_URL, {
+    onopen: () => {
+      signalingChannel.current?.sendJSON({
+        command: "publish",
+        streamId: STREAM_ID,
+      })
+    },
+    start: async () => {
+      signalingChannel.current?.sendJSON({
+        command: "takeConfiguration",
+        streamId: STREAM_ID,
+        type: "offer",
+        sdp: peerConnection?.current?.localDescription?.sdp,
+      })
+    },
+    stop: () => {
+      console.log("stop called")
+    },
+    takeCandidate: (data) => {
+      console.log("onIceCandidate remote");
+      peerConnection.current?.addIceCandidate({
+        candidate: data?.candidate || "",
+        sdpMLineIndex: Number(data?.label) || 0,
+        sdpMid: data?.id || "",
+      })
+    },
+    takeConfiguration: (data) => {
+      console.log("got answer")
+      const answer = data?.sdp || "";
+      peerConnection.current?.setRemoteDescription({
+        sdp: answer,
+        type: "answer"
+      })
+    }
+  }));
+
 
   useEffect(() => {
     const getStream = async () => {
@@ -118,20 +120,83 @@ const App = () => {
       })
 
       if (media) {
+        localStreamRef.current = media as MediaStream;
         setLocalStream(media as MediaStream)
       }
     }
 
     getStream();
-  }, [isFrontCamera])
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      signalingChannel.current.close();
+    }
+  }, [])
 
   return (
     <View style={StyleSheet.absoluteFill}>
       {!!localStream &&
-        <RTCView streamURL={localStream?.toURL()} style={{ flex: 1 }} objectFit="cover" />
+        <RTCView streamURL={localStream?.toURL()} style={{ flex: 1 }} mirror={isFrontCamera} objectFit="cover" />
       }
+      <View style={styles.bottom}>
+        <Button title={started ? "Stop" : "Start"} color="white" onPress={async () => {
+          if (!started) {
+            setStarted(true);
+            await startStreaming();
+            signalingChannel.current?.open();
+            return;
+          }
+
+          setStarted(false);
+          peerConnection.current?.close();
+          signalingChannel.current?.close();
+
+        }} />
+        <Button title={audiMuted? "UMA": "MA"} color="white" onPress={() => {
+          const localStreams = peerConnection.current?.getLocalStreams() || [];
+          for(const stream of localStreams){
+            stream.getAudioTracks().forEach(each => {
+              each.enabled = audiMuted;
+            })
+          }
+          setAudioMuted(m => !m);
+        }} />
+        <Button title={videoMuted? "UMV": "MV"} color="white" onPress={() => {
+          const localStreams = peerConnection.current?.getLocalStreams() || [];
+          for(const stream of localStreams){
+            stream.getVideoTracks().forEach(each => {
+              each.enabled = videoMuted;
+            })
+          }
+          setVideoMuted(m => !m);
+        }} />
+        <Button title="SC" color="white" onPress={() => {
+          const localStreams = peerConnection.current?.getLocalStreams() || [];
+          for(const stream of localStreams){
+            stream.getVideoTracks().forEach(each => {
+              // @ts-ignore
+              // easiest way is to switch camera this way
+              each._switchCamera();
+            })
+          }
+          setIsFrontCamera(c => !c);
+        }} />
+      </View>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  bottom: {
+    position: "absolute",
+    bottom: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    justifyContent: "space-evenly",
+    marginBottom: 30
+  }
+})
 
 export default App;
