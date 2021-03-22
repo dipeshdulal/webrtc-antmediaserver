@@ -1,5 +1,5 @@
 interface AntWebsocketResponse {
-    command: "publish" | "start" | "takeConfiguration" | "takeCandidate" | "stop",
+    command: "publish" | "start" | "takeConfiguration" | "takeCandidate" | "stop" | "play",
     streamId: string;
     token?: string;
     type?: "offer" | "answer";
