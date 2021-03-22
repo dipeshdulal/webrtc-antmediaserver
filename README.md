@@ -5,9 +5,9 @@ Example repo for testing ant media server webrtc capabilities.
 
 #### Checklist
 - [x] Publish webrtc streams to ant media server
-- [ ] Mute audio support
-- [ ] Mute video support
-- [ ] Switch Camera Support
+- [x] Mute audio support
+- [x] Mute video support
+- [x] Switch Camera Support
 - [ ] Streams playing (webrtc streams playing)
 
 
