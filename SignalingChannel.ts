@@ -11,40 +11,44 @@ interface AntWebsocketResponse {
 type ChannelCallbackFn = (data?: AntWebsocketResponse) => void;
 
 interface SignalingCallbacks {
+    onopen: () => void;
     start: ChannelCallbackFn;
     takeCandidate: ChannelCallbackFn;
     takeConfiguration: ChannelCallbackFn;
     stop: ChannelCallbackFn;
-    onOpen: ChannelCallbackFn;
 }
 
 export class SignalingChannel {
-    private ws: WebSocket;
+    private ws?: WebSocket;
     private callbacks: SignalingCallbacks;
     private isOpen: boolean = false;
+
+    private url: string;
 
     isChannelOpen = () => {
         return this.isOpen;
     }
 
     constructor(url: string, callbacks: SignalingCallbacks) {
-        this.ws = new WebSocket(url);
+        this.url = url;
+        this.callbacks = callbacks
+    }
+
+    open = () => {
+        this.ws = new WebSocket(this.url);
         this.ws.onopen = this.onopen
         this.ws.onmessage = this.onmessage
         this.ws.onerror = this.onerror
-        this.callbacks = callbacks
     }
 
     onopen = () => {
         this.isOpen = true;
-        console.log("websocket opened");
-        this.callbacks.onOpen();
+        this.callbacks.onopen();
     }
 
     onmessage = (event: WebSocketMessageEvent) => {
         const data = JSON.parse(event.data) as AntWebsocketResponse;
-
-
+        console.log(data.command);
         if (data.command in this.callbacks) {
             this.callbacks[data.command as keyof SignalingCallbacks](data);
         }
@@ -62,12 +66,13 @@ export class SignalingChannel {
     // https://ant-media-docs.readthedocs.io/en/latest/WebRTC-Developers.html#webrtc-websocket-messaging-details
     // signaling channel request (signaling details)
     sendJSON = (data: AntWebsocketResponse) => {
-        this.ws.send(JSON.stringify(data));
+        this.ws?.send(JSON.stringify(data));
     }
 
     close = () => {
         console.info("closing websocket connection");
-        this.ws.close();
+        this.ws?.close();
+        this.ws = undefined;
     }
 
 }
