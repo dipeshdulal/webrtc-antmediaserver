@@ -9,5 +9,3 @@ Example repo for testing ant media server webrtc capabilities.
 - [x] Mute video support
 - [x] Switch Camera Support
 - [ ] Streams playing (webrtc streams playing)
-
-
