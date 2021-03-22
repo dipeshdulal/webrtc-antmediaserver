@@ -178,9 +178,9 @@ const App = () => {
               // @ts-ignore
               // easiest way is to switch camera this way
               each._switchCamera();
-              setIsFrontCamera(c => !c);
             })
           }
+          setIsFrontCamera(c => !c);
         }} />
       </View>
     </View>
