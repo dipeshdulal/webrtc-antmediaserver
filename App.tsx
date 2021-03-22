@@ -126,7 +126,7 @@ const App = () => {
     }
 
     getStream();
-  }, [isFrontCamera])
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -137,7 +137,7 @@ const App = () => {
   return (
     <View style={StyleSheet.absoluteFill}>
       {!!localStream &&
-        <RTCView streamURL={localStream?.toURL()} style={{ flex: 1 }} objectFit="cover" />
+        <RTCView streamURL={localStream?.toURL()} style={{ flex: 1 }} mirror={isFrontCamera} objectFit="cover" />
       }
       <View style={styles.bottom}>
         <Button title={started ? "Stop" : "Start"} color="white" onPress={async () => {
@@ -153,7 +153,7 @@ const App = () => {
           signalingChannel.current?.close();
 
         }} />
-        <Button title="MA" color="white" onPress={() => {
+        <Button title={audiMuted? "UMA": "MA"} color="white" onPress={() => {
           const localStreams = peerConnection.current?.getLocalStreams() || [];
           for(const stream of localStreams){
             stream.getAudioTracks().forEach(each => {
@@ -162,7 +162,7 @@ const App = () => {
           }
           setAudioMuted(m => !m);
         }} />
-        <Button title="MV" color="white" onPress={() => {
+        <Button title={videoMuted? "UMV": "MV"} color="white" onPress={() => {
           const localStreams = peerConnection.current?.getLocalStreams() || [];
           for(const stream of localStreams){
             stream.getVideoTracks().forEach(each => {
@@ -172,7 +172,15 @@ const App = () => {
           setVideoMuted(m => !m);
         }} />
         <Button title="SC" color="white" onPress={() => {
-          setIsFrontCamera(f => !f)
+          const localStreams = peerConnection.current?.getLocalStreams() || [];
+          for(const stream of localStreams){
+            stream.getVideoTracks().forEach(each => {
+              // @ts-ignore
+              // easiest way is to switch camera this way
+              each._switchCamera();
+              setIsFrontCamera(c => !c);
+            })
+          }
         }} />
       </View>
     </View>
