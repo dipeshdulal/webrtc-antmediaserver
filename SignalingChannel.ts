@@ -48,7 +48,7 @@ export class SignalingChannel {
 
     onmessage = (event: WebSocketMessageEvent) => {
         const data = JSON.parse(event.data) as AntWebsocketResponse;
-        console.log(data.command);
+        console.log("command:", data.command, "data: ", event.data);
         if (data.command in this.callbacks) {
             this.callbacks[data.command as keyof SignalingCallbacks](data);
         }
