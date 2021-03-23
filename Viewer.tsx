@@ -1,13 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
     Button,
-    Dimensions,
     StyleSheet,
     View,
 } from 'react-native';
 import { SignalingChannel } from './SignalingChannel';
 
-import { mediaDevices, MediaStream, RTCPeerConnection, RTCSessionDescriptionType, RTCView } from "react-native-webrtc";
+import { MediaStream, RTCPeerConnection, RTCSessionDescriptionType, RTCView } from "react-native-webrtc";
 import { config } from './config';
 
 const STREAM_ID = "170714163152216487974907";
@@ -24,12 +23,23 @@ export const Viewer = () => {
             iceServers: []
         })
 
+        peerConnection.current.onaddstream = (event) => {
+            console.log("on add stream")
+            setRemoteStream(event.stream)
+        }
+
+        peerConnection.current.onremovestream = () => console.log("stream removed")
+
+        peerConnection.current.onconnectionstatechange = (event) => console.log("state change connection: ", peerConnection.current?.connectionState)
+
         peerConnection.current.onsignalingstatechange = () => console.log(peerConnection.current?.signalingState)
 
         peerConnection.current.onicecandidateerror = console.log
+
         peerConnection.current.onicecandidate = (event) => {
             const candidate = event.candidate;
-            if (candidate && signalingChannel.current?.isChannelOpen()) {
+            if (candidate && signalingChannel.current?.isChannelOpen() && peerConnection.current?.signalingState === "have-remote-offer") {
+                console.log("sending local ice candidates")
                 signalingChannel.current?.sendJSON({
                     command: "takeCandidate",
                     streamId: STREAM_ID,
@@ -39,17 +49,12 @@ export const Viewer = () => {
                 })
             }
         }
-
-        peerConnection.current.onaddstream = (event) => {
-            const remoteStreams = peerConnection.current?.getRemoteStreams()[0]
-            setRemoteStream(remoteStreams)
-        }
-
+        
         await peerConnection.current?.setRemoteDescription(remoteDescription)
 
-        const offer = await peerConnection.current.createAnswer();
-        await peerConnection.current.setLocalDescription(offer);
-
+        const answer = await peerConnection.current.createAnswer();
+        await peerConnection.current.setLocalDescription(answer);
+        
     }
 
     const signalingChannel = useRef<SignalingChannel>(new SignalingChannel(config.SIGNALING_URL, {
@@ -72,12 +77,12 @@ export const Viewer = () => {
             })
         },
         takeConfiguration: async (data) => {
-            console.log("got offer")
+            console.log("got offer: ", data?.type)
             const offer = data?.sdp || "";
-          
+
             await startStreaming({
                 sdp: offer,
-                type: "offer"
+                type: data?.type || ""
             });
 
             signalingChannel.current?.sendJSON({
@@ -86,6 +91,7 @@ export const Viewer = () => {
                 type: "answer",
                 sdp: peerConnection?.current?.localDescription?.sdp,
             })
+
         }
     }));
 
