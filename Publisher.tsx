@@ -9,10 +9,14 @@ import { SignalingChannel } from './SignalingChannel';
 
 import { mediaDevices, MediaStream, RTCPeerConnection, RTCView } from "react-native-webrtc";
 import { config } from './config';
+import { Viewer } from './Viewer';
 
 const STREAM_ID = "170714163152216487974907";
 
-export const Publisher = () => {
+export const Publisher: React.FC<{ streamId?: string, viewerId?: string }> = ({
+  streamId,
+  viewerId
+}) => {
 
   const [started, setStarted] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(true);
@@ -45,7 +49,7 @@ export const Publisher = () => {
       if (candidate && signalingChannel.current?.isChannelOpen()) {
         signalingChannel.current?.sendJSON({
           command: "takeCandidate",
-          streamId: STREAM_ID,
+          streamId: streamId || STREAM_ID,
           label: candidate.sdpMLineIndex.toString(),
           id: candidate.sdpMid,
           candidate: candidate.candidate,
@@ -62,13 +66,13 @@ export const Publisher = () => {
     onopen: () => {
       signalingChannel.current?.sendJSON({
         command: "publish",
-        streamId: STREAM_ID,
+        streamId: streamId || STREAM_ID,
       })
     },
     start: async () => {
       signalingChannel.current?.sendJSON({
         command: "takeConfiguration",
-        streamId: STREAM_ID,
+        streamId: streamId || STREAM_ID,
         type: "offer",
         sdp: peerConnection?.current?.localDescription?.sdp,
       })
@@ -152,18 +156,18 @@ export const Publisher = () => {
           signalingChannel.current?.close();
 
         }} />
-        <Button title={audiMuted? "UMA": "MA"} color="white" onPress={() => {
+        <Button title={audiMuted ? "UMA" : "MA"} color="white" onPress={() => {
           const localStreams = peerConnection.current?.getLocalStreams() || [];
-          for(const stream of localStreams){
+          for (const stream of localStreams) {
             stream.getAudioTracks().forEach(each => {
               each.enabled = audiMuted;
             })
           }
           setAudioMuted(m => !m);
         }} />
-        <Button title={videoMuted? "UMV": "MV"} color="white" onPress={() => {
+        <Button title={videoMuted ? "UMV" : "MV"} color="white" onPress={() => {
           const localStreams = peerConnection.current?.getLocalStreams() || [];
-          for(const stream of localStreams){
+          for (const stream of localStreams) {
             stream.getVideoTracks().forEach(each => {
               each.enabled = videoMuted;
             })
@@ -172,7 +176,7 @@ export const Publisher = () => {
         }} />
         <Button title="SC" color="white" onPress={() => {
           const localStreams = peerConnection.current?.getLocalStreams() || [];
-          for(const stream of localStreams){
+          for (const stream of localStreams) {
             stream.getVideoTracks().forEach(each => {
               // @ts-ignore
               // easiest way is to switch camera this way
@@ -182,6 +186,12 @@ export const Publisher = () => {
           setIsFrontCamera(c => !c);
         }} />
       </View>
+
+      {viewerId &&
+        <View style={{ position: "absolute", top: 0, right: 0, width: 200, height: 200, backgroundColor: "white" }}>
+          <Viewer streamId={viewerId} />
+        </View>
+      }
     </View>
   );
 };

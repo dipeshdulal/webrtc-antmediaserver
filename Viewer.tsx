@@ -11,7 +11,9 @@ import { config } from './config';
 
 const STREAM_ID = "170714163152216487974907";
 
-export const Viewer = () => {
+export const Viewer: React.FC<{ streamId?: string }> = ({
+    streamId,
+}) => {
 
     const [remoteStream, setRemoteStream] = useState<MediaStream>();
 
@@ -42,26 +44,26 @@ export const Viewer = () => {
                 console.log("sending local ice candidates")
                 signalingChannel.current?.sendJSON({
                     command: "takeCandidate",
-                    streamId: STREAM_ID,
+                    streamId: streamId || STREAM_ID,
                     label: candidate.sdpMLineIndex.toString(),
                     id: candidate.sdpMid,
                     candidate: candidate.candidate,
                 })
             }
         }
-        
+
         await peerConnection.current?.setRemoteDescription(remoteDescription)
 
         const answer = await peerConnection.current.createAnswer();
         await peerConnection.current.setLocalDescription(answer);
-        
+
     }
 
     const signalingChannel = useRef<SignalingChannel>(new SignalingChannel(config.SIGNALING_URL, {
         onopen: () => {
             signalingChannel.current?.sendJSON({
                 command: "play",
-                streamId: STREAM_ID,
+                streamId: streamId || STREAM_ID,
             })
         },
         start: async () => { },
@@ -87,7 +89,7 @@ export const Viewer = () => {
 
             signalingChannel.current?.sendJSON({
                 command: "takeConfiguration",
-                streamId: STREAM_ID,
+                streamId: streamId || STREAM_ID,
                 type: "answer",
                 sdp: peerConnection?.current?.localDescription?.sdp,
             })
@@ -102,7 +104,7 @@ export const Viewer = () => {
     }, [])
 
     return (
-        <View style={StyleSheet.absoluteFill}>
+        <View style={{flex: 1}}>
             <View style={{ flexDirection: "row", justifyContent: "space-evenly" }}>
                 <Button title="Play" onPress={() => signalingChannel.current.open()} />
                 <Button title="Stop" onPress={() => signalingChannel.current.close()} />
